@@ -89,3 +89,14 @@ Specifics regarding the commands referenced in this workflow can be found here:
 ## Audit scripts for Aries VCR/OrgBook and BC Registries Issuer
 
 This repository provides scripts to audit the OrgBook search database and agent wallet against the source BC Registries data; [Audit Scripts](https://github.com/bcgov/von-bc-registries-audit/blob/main/README.md#understanding-the-output)
+
+## Troubleshoot Failed Credentials Error
+
+Occasionally credentials get stuck in the processing queue due to errors, and will not respond to the use of the [`requeueOrganization`](./bc-registries-agent-configurations-manage-script.md#requeueOrganization-command) and/or [`queueOrganization`](./bc-registries-agent-configurations-manage-script.md#queueOrganization-command) commands.  In these cases you want to check the pipeline status for an errors.
+
+Run the [`./manage -e prod getPipelineStatus`](./bc-registries-agent-configurations-manage-script.md#getPipelineStatus-command) command and verify the credentials errors. An example regarding this is shown below in the image:
+![BC-Registries-Audit-Errors](./images/bc-registries-audit-errors.png)
+
+From the output above you can see there are 50 processing errors in the `credential_log` table.  This means there are 50 credentials that have not been processed and posted to the OrgBook.  To requeue these credentials for processing run the [`requeueFailedCreds`](./bc-registries-agent-configurations-manage-script.md#requeueFailedCreds-command) command.
+
+Once you have verified the credentials have been requeued, run the [`runPipeline` ](./bc-registries-agent-configurations-manage-script.md#runPipeline-command) command to process the outstanding records.

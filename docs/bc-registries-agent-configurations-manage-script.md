@@ -38,7 +38,6 @@ update event_by_corp_filing set process_success = null, process_date = null, pro
 UPDATE 1
 ```
     
-
 ## `queueOrganization` command
 
 This command is used to Queue a specific company that has *not* already been processed.
@@ -56,4 +55,119 @@ Executing command on 7cba16-dev/event-db-primary-20-9x4rc:
 
 insert into event_by_corp_filing (system_type_cd, corp_num, prev_event_id, prev_event_date, last_event_id, last_event_date, entry_date) select 'BC_REG', 'BC0002365', 0, '0001-01-01', last_event_id, last_event_date, now() from event_by_corp_filing where record_id = (select max(record_id) from event_by_corp_filing);
 INSERT 0 1
+```
+
+## `requeueFailedCreds` command
+
+This command is used to requeue any credentials (credential_log records) that have failed posting.
+
+For example:
+```
+$ ./manage -e prod requeueFailedCreds
+
+Loading settings ...
+Loading settings from /c/Git/von-bc-registries-agent-configurations/openshift/settings.sh ...
+
+
+Executing command on 7cba16-prod/event-db-primary-8-q6p2q:
+        psql -d ${POSTGRESQL_DATABASE} -ac "update credential_log set process_success = null, process_date = null, process_msg = null where process_success = 'N';"
+
+update credential_log set process_success = null, process_date = null, process_msg = null where process_success = 'N';
+UPDATE 0
+```
+
+## `getPipelineStatus` command
+
+This command gets the pipeline status for the given environment.  It runs the `./run-step.sh bcreg/display_pipeline_status.py` pipeline script on an instance of the event-processor pod.
+
+For example:
+```
+$ ./manage -e prod getPipelineStatus
+
+Loading settings ...
+Loading settings from /c/Git/von-bc-registries-agent-configurations/openshift/settings.sh ...
+
+BC_REG : Table: event_by_corp_filing Processed: 10017043 Outstanding: 27
+BC_REG :        event_by_corp_filing Process Errors: 0
+BC_REG : Table: corp_history_log Processed: 7775959 Outstanding: 0
+BC_REG :        corp_history_log Process Errors: 0
+BC_REG : Table: credential_log Processed: 5135210 Outstanding: 0
+BC_REG :        credential_log Process Errors: 0
+BCREG_LEAR : Table: event_by_corp_filing Processed: 15421 Outstanding: 0
+BCREG_LEAR :        event_by_corp_filing Process Errors: 0
+BCREG_LEAR : Table: corp_history_log Processed: 14281 Outstanding: 0
+BCREG_LEAR :        corp_history_log Process Errors: 0
+BCREG_LEAR : Table: credential_log Processed: 23135 Outstanding: 0
+BCREG_LEAR :        credential_log Process Errors: 0
+```
+
+## `runPipeline` command
+
+This command is used to run the pipeline for the given environment.  It runs the './run-step.sh bcreg/bc_reg_pipeline.py' pipeline script on an instance of a event-processor pod.
+
+For example:
+```
+$ ./manage -e prod runPipeline
+
+Loading settings ...
+Loading settings from /c/Git/von-bc-registries-agent-configurations/openshift/settings.sh ...
+
+>>> NOT Posted webhook level 2 ( 0 ), message Starting bc_reg_event_processor ...
+bc_reg_event_processor: ★ 1:08m
+bc_reg_event_processor / load_and_process_bc_reg_data: ★ 1:02m
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: ★ 
+26.5s
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: /data-pipeline/.venv/bin/python3 -u "bcreg/find-unprocessed-events.py"
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: >>> Processing 1 of 1 corporations.
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Get last processed event for BC_REG
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Last processed event is 17920713 2023-02-26 22:44:29
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Get last max event before now
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Last max event before now is 17920713 2023-02-26 22:44:29    
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Get unprocessed corps
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcregistries:Executing: SELECT corp_num, event_id from bc_registries.event     
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events:   
+                      where event_timestmp >= %s with 2023-02-26 22:44:29
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcregistries:Loaded corps: 1
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcregistries:Loaded corps: 1
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcregistries:Loaded corps: 0
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Unprocessed corps count is 1
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Find unprocessed events for each corp
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Unprocessed corps events count is 1
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: INFO:bcreg.bcreg_batch_utils:Update our queue
+bc_reg_event_processor / load_and_process_bc_reg_data / register_un_processed_events: succeeded,  21 seconds
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: ★ 35.6s       
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: /data-pipeline/.venv/bin/python3 -u "bcreg/process-corps-generate-creds.py"
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: >>> in scope corp types: {'A': 'EXTRA PRO', 'B': 'EXTRA PRO', 'BC': 'BC COMPANY', 'BEN': 'BENEFIT COMPANY', 'C': 'CONTINUE IN', 'CC': 'BC CCC', 'CP': 'COOP', 'CS': 'CONT IN SOCIETY', 'CUL': 
+'ULC CONTINUE IN', 'EPR': 'EXTRA PRO REG', 'FOR': 'FOREIGN', 'LIC': 'LICENSED', 'LL': 'LL PARTNERSHIP', 'LLC': 'LIMITED CO', 'LP': 'LIM PARTNERSHIP', 'MF': 'MISC FIRM', 'PA': 'PRIVATE ACT', 'QA': 'CO 1860', 'QB': 'CO 1862', 'QC': 'CO 1878', 'QD': 'CO 1890', 'QE': 
+'CO 1897', 'REG': 'REGISTRATION', 'S': 'SOCIETY', 'ULC': 'BC ULC COMPANY', 'XCP': 'XPRO 
+COOP', 'XL': 'XPRO LL PARTNR', 'XP': 'XPRO LIM PARTNR', 'XS': 'XPRO SOCIETY'}
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: Processing: 25.129216292873025
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: >>> Processing 1 of 56 corporations.
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: Processing: 26.02316944207996
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: >>> Processing 56 of 56 corporations.
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: Processing: 26.038857150822878
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcregistries:Caching data for parties and events ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcregistries:Caching data for corporations ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcregistries:Caching data for code tables ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcreg_core:Caching data for parties and events ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcreg_core:Caching data for corporations ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.bcreg_core:Caching data for code tables ...
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: INFO:bcreg.eventprocessor:Didn't complete any activity this loop, so bail
+bc_reg_event_processor / load_and_process_bc_reg_data / load_bc_reg_data: succeeded,  26 seconds
+bc_reg_event_processor / load_and_process_bc_reg_data / create_bc_reg_credentials: ★ 0.5s
+bc_reg_event_processor / load_and_process_bc_reg_data / create_bc_reg_credentials: /data-pipeline/.venv/bin/python3 -u "bcreg/generate-creds.py"
+bc_reg_event_processor / load_and_process_bc_reg_data / create_bc_reg_credentials: >>> in scope corp types: {'A': 'EXTRA PRO', 'B': 'EXTRA PRO', 'BC': 'BC COMPANY', 'BEN': 'BENEFIT COMPANY', 'C': 'CONTINUE IN', 'CC': 'BC CCC', 'CP': 'COOP', 'CS': 'CONT IN SOCIETY', 'CUL': 'ULC CONTINUE IN', 'EPR': 'EXTRA PRO REG', 'FOR': 'FOREIGN', 'LIC': 'LICENSED', 'LL': 'LL PARTNERSHIP', 'LLC': 'LIMITED CO', 'LP': 'LIM PARTNERSHIP', 'MF': 'MISC FIRM', 'PA': 'PRIVATE ACT', 'QA': 'CO 1860', 'QB': 'CO 1862', 'QC': 'CO 1878', 'QD': 'CO 1890', 'QE': 'CO 1897', 'REG': 'REGISTRATION', 'S': 'SOCIETY', 'ULC': 'BC ULC COMPANY', 'XCP': 'XPRO COOP', 'XL': 'XPRO LL PARTNR', 'XP': 'XPRO LIM PARTNR', 'XS': 'XPRO SOCIETY'}
+bc_reg_event_processor / load_and_process_bc_reg_data / create_bc_reg_credentials: succeeded,  0 seconds
+bc_reg_event_processor / load_and_process_bc_reg_data: succeeded, 48 seconds
+bc_reg_event_processor / submit_bc_reg_credentials: ★ 5.9s
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: ★ 5.9s
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: /data-pipeline/.venv/bin/python3 -u "bcreg/submit-creds.py"
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: >>> Waiting for all outstanding tasks to complete ...
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: >>> Completed.
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: Processing: 4.0646176785230637e-05
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: 0.0 credentials per minute        
+bc_reg_event_processor / submit_bc_reg_credentials / submit_credentials: succeeded,  0 seconds
+bc_reg_event_processor / submit_bc_reg_credentials: succeeded, 48 seconds
+bc_reg_event_processor: succeeded, 48 seconds
+>>> NOT Posted webhook level 2 ( 0 ), message Ran bc_reg_event_processor - complete.
 ```
